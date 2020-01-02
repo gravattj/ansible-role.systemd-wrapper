@@ -1,0 +1,15 @@
+---
+
+- name: ensure dest dir exists
+  become: true
+  file:
+    path: "{{ _prefix_dir }}/etc/profile.d"
+    state: directory
+    mode: '0755'
+    
+- name: install systemd-wrapper.sh
+  become: true
+  copy:
+    src:  systemd-wrapper.sh
+    dest: "{{ _prefix_dir }}/etc/profile.d/"
+    mode: 0644

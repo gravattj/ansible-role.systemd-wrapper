@@ -1,0 +1,15 @@
+# vim: tabstop=2 softtabstop=2 expandtab
+
+---
+
+- hosts: localhost
+  tasks:
+    - stat:
+        path: "{{ _prefix_dir }}/etc/profile.d/systemd-wrapper.sh"
+      register: p
+
+    - assert:
+        that:
+          - p.stat.exists
+          - p.stat.pw_name == "root"
+          - p.stat.mode == "0644"
