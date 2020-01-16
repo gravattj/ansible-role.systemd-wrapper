@@ -5,6 +5,7 @@
 #       LICENSE: Apache 2.0
 #       CREDITS: http://github.com/yaffare/systemd-shell-wrapper 
 #   MODIFIED BY: http://github.com/mortn/systemd-shell-wrapper 
+# MODIFIED MORE: gravattj
 #  INSTALLATION: wget -SO/etc/profile.d/systemd-wrapper.sh [Raw URL to this]
 #
 
@@ -14,8 +15,9 @@ if [ -z "$BASH_VERSION" ]; then	return; fi
 if [[ -f /etc/systemd/shell-wrapper.conf ]]; then
 	source /etc/systemd/shell-wrapper.conf
 else
-	HIDEDAEMONS=(console-getty console-shell debug-shell ftpd nscd sshdgenkeys \
-		systemd-readahead-collect systemd-readahead-drop systemd-readahead-replay)
+	HIDEDAEMONS=()
+	#console-getty console-shell debug-shell ftpd nscd sshdgenkeys \
+	#	systemd-readahead-collect systemd-readahead-drop systemd-readahead-replay)
 fi
 
 # some people seem to not have /usr/bin in $PATH when using sudo
@@ -35,6 +37,7 @@ s.analyze()     { systemd-analyze $*; }
 s.wants()       { $_systemctl show -p "Wants" $1; }
 s.logsize()     { s_exec "${_journalctl}"" --disk-usage"; }
 s.list()        { s_list_services "list"; }
+s.listall()		{ s_listall_services "list"; }
 s.log()         { s_journalctl "$@"; }
 s.logfollow()   { $_journalctl -f "$@"; }
 s.tree()        { s_exec "/usr/bin/systemd-cgls --all"; }
@@ -161,6 +164,57 @@ s_journalctl() {
 		echo "${_journalctl} --all $*";
 		s_exec "${_journalctl} --all $*";
 	fi
+}
+
+s_listall_services () { $_systemctl --no-legend list-unit-files \
+	|	{
+			while read -r daemon daemonstate ; do
+
+				# support for "@" stuff like dhcpcd@eth0 dhcpcd@eth1 ...
+				if [[ "${daemon:${#daemon}-9}" == "@.service" ]]; then
+					daemons=$(${_systemctl} --no-legend -t service | grep -o "${daemon/.service/}[A-Za-z0-9_/=:.-]*")
+					if [[ "${daemons[0]}" == "" ]]; then daemons=($daemon); fi # when no instance of "@" service is started it appears just as dhcpcd@
+				else
+					daemons=($daemon)
+				fi
+
+				for daemon in $daemons; do
+					if s_hidedaemon "${daemon/.service/}"; then continue; fi;
+					if [[ "${1}" == "list" ]]; then
+						echo -en "\e[1;34m[";
+					elif [[ "${1}" == "enabled" || "${1}" == "disabled" ]]; then
+						if [[ "${1}" == "${daemonstate}" ]]; then printf "%s\n" "${daemon/.service/}"; fi
+						continue
+					fi
+					${_systemctl} -q is-active "${daemon}" >& /dev/null
+					if [[ $? -eq 0 ]]; then
+							if [[ "${1}" == "list" ]]; then
+								echo -en "\e[1;37mSTARTED"
+							else
+								if [[ "${1}" != "stopped" ]]; then printf "%s\n" "${daemon/.service/}"; fi
+							fi
+					else
+							if [[ "${1}" == "list" ]]; then
+								echo -en "\e[1;31mSTOPPED"
+							else
+								if [[ "${1}" != "started" ]]; then printf "%s\n" "${daemon/.service/}"; fi
+							fi
+					fi
+					if [[ "${1}" != "list" ]]; then continue; fi
+					echo -en "\e[1;34m][\e[1;37m"
+
+					# !!! in the rare case of having two or more "@" instances (dhcpcd@) from the same service having different states (en/disabled) this actually shows wrong results
+					if [[ "${daemonstate}" == "enabled" ]]; then
+							echo -n "AUTO"
+					else
+							echo -n "    "
+					fi
+					echo -en "\e[1;34m]\e[0m "
+					echo "${daemon/.service/}"
+				done
+
+			done;
+		}
 }
 
 s_list_services () { $_systemctl --no-legend -t service list-unit-files | grep -v static  \
