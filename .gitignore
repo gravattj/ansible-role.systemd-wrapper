@@ -1,8 +1,6 @@
 #
 # ansible
 #
-hosts
-host_vars/
 
 #
 # eclipse

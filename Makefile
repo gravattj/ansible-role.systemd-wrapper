@@ -2,10 +2,10 @@
 
 install:
 	sudo mkdir -p /etc/ansible/roles
-	sudo rsync -av systemd_wrapper/ /etc/ansible/roles/systemd_wrapper
+	sudo rsync -av systemd_wrapper.gravattj/ /etc/ansible/roles/systemd_wrapper.gravattj
 
 test:
-	cd systemd_wrapper/tests && make all
+	cd systemd_wrapper.gravattj/tests && make all
 
 #
 # Generally all targets in your Makefile which do not produce an output file 
